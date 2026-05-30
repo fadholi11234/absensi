@@ -1,0 +1,136 @@
+:root{
+  --bg:#f7f7fb;
+  --card:#ffffff;
+  --txt:#222;
+  --muted:#666;
+  --primary:#2563eb;
+  --danger:#d32f2f;
+  --warn:#b45309;
+  --success:#2e7d32;
+  --border:#e5e7eb;
+}
+
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial;
+  color:var(--txt);
+  background:var(--bg);
+}
+
+.container{
+  max-width:720px;
+  padding:16px;
+  margin:0 auto;
+}
+
+h1,h2,h3{
+  margin:10px 0 12px;
+}
+
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:16px;
+  margin:14px 0;
+  box-shadow:0 1px 2px rgba(0,0,0,0.03);
+}
+
+.header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+}
+
+.user-bar{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+label{
+  display:block;
+  margin:8px 0 6px;
+  font-weight:600;
+}
+
+input[type="text"],
+input[type="password"],
+select,
+textarea{
+  width:100%;
+  padding:10px 12px;
+  border:1px solid var(--border);
+  border-radius:8px;
+  background:#fff;
+  color:var(--txt);
+}
+
+.form-grid{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:12px;
+}
+@media(min-width:640px){
+  .form-grid{
+    grid-template-columns:1fr 1fr;
+  }
+  #catatanGroup{
+    grid-column:1 / -1;
+  }
+}
+
+.btn{
+  border:1px solid var(--border);
+  background:#fff;
+  color:var(--txt);
+  padding:10px 14px;
+  border-radius:8px;
+  cursor:pointer;
+}
+.btn.primary{
+  background:var(--primary);
+  color:#fff;
+  border-color:transparent;
+}
+.btn:disabled{
+  opacity:0.6;
+  cursor:not-allowed;
+}
+
+.msg{
+  display:inline-block;
+  margin-left:10px;
+  color:var(--muted);
+}
+.msg.error{
+  color:var(--danger);
+}
+.msg.warn{
+  color:var(--warn);
+}
+.msg.success{
+  color:var(--success);
+}
+
+.status-grid{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:6px;
+}
+@media(min-width:560px){
+  .status-grid{grid-template-columns:1fr 1fr;}
+}
+
+.camera-block h3{ margin:8px 0; }
+.camera-controls{ display:flex; gap:8px; margin-bottom:10px; }
+.camera-preview{ width:100%; background:#000; border-radius:8px; overflow:hidden; }
+video{ width:100%; height:auto; background:#000; }
+.form-actions{ margin-top:10px; }
+
+.info{ color:var(--muted); font-size:14px; }
+
+.small{ font-size:12px; color:var(--muted); }

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Login Absensi</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="container">
+    <h1>Login Absensi</h1>
+    <form id="loginForm" class="card">
+      <label for="nama">Nama</label>
+      <input type="text" id="nama" name="nama" autocomplete="username" required />
+
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" autocomplete="current-password" required />
+
+      <button type="submit" class="btn primary">Login</button>
+      <div id="loginMsg" class="msg"></div>
+    </form>
+
+    <section class="info">
+      <p>Aplikasi ini membutuhkan koneksi internet saat login. Sesi login disimpan untuk hari yang sama.</p>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+  <script>
+    // Jika sudah login dan masih di hari yang sama, langsung arahkan ke halaman absensi
+    (function autoRedirectIfLoggedIn() {
+      const session = getLoginSession();
+      if (session && isSameDate(session.loginDate, new Date())) {
+        window.location.href = "absensi.html";
+      }
+    })();
+
+    const form = document.getElementById('loginForm');
+    const msg = document.getElementById('loginMsg');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      msg.textContent = "";
+      const nama = document.getElementById('nama').value.trim();
+      const password = document.getElementById('password').value;
+
+      if (!navigator.onLine) {
+        msg.textContent = "Tidak ada koneksi internet.";
+        msg.className = "msg error";
+        return;
+      }
+
+      try {
+        const res = await fetch(WEB_APP_URL + "?action=login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nama, password })
+        });
+        const data = await res.json();
+        if (data.success) {
+          saveLoginSession({
+            nama: data.nama,
+            loginDate: new Date().toISOString().slice(0,10) // yyyy-mm-dd
+          });
+          window.location.href = "absensi.html";
+        } else {
+          msg.textContent = data.message || "Login gagal.";
+          msg.className = "msg error";
+        }
+      } catch (err) {
+        msg.textContent = "Terjadi kesalahan koneksi.";
+        msg.className = "msg error";
+      }
+    });
+  </script>
+</body>
+</html>

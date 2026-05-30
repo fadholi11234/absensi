@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Absensi</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="container">
+    <header class="header">
+      <h1>Form Absensi</h1>
+      <div class="user-bar">
+        <span id="userName"></span>
+        <button id="logoutBtn" class="btn">Logout</button>
+      </div>
+    </header>
+
+    <section class="card">
+      <h2>Status Perangkat</h2>
+      <div class="status-grid">
+        <div><strong>Status Internet:</strong> <span id="netStatus">-</span></div>
+        <div><strong>Status GPS:</strong> <span id="gpsStatus">-</span></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Data Absensi</h2>
+      <form id="absenForm">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Nama</label>
+            <input type="text" id="formNama" readonly />
+          </div>
+
+          <div class="form-group">
+            <label>Jenis Absensi</label>
+            <select id="jenisAbsensi" required>
+              <option value="">-- Pilih --</option>
+              <option value="Masuk">Masuk</option>
+              <option value="Pulang">Pulang</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Lokasi Tempat Kerja</label>
+            <select id="lokasiKerja" required>
+              <option value="">-- Pilih --</option>
+              <option value="Kantor">Kantor</option>
+              <option value="Site">Site</option>
+              <option value="Tempat Belanja">Tempat Belanja</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div id="catatanGroup" class="form-group" style="display:none;">
+            <label>Catatan Lokasi</label>
+            <textarea id="catatanLokasi" rows="2" placeholder="Contoh: Survey lokasi proyek gudang Surabaya"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>Koordinat</label>
+            <input type="text" id="coords" readonly placeholder="Menunggu GPS..." />
+            <small id="gpsAccuracyTxt"></small>
+          </div>
+        </div>
+
+        <div class="camera-block">
+          <h3>Kamera</h3>
+          <div class="camera-controls">
+            <button type="button" id="startCamBtn" class="btn">Aktifkan Kamera</button>
+            <button type="button" id="captureBtn" class="btn" disabled>Ambil Foto</button>
+          </div>
+          <div class="camera-preview">
+            <video id="video" playsinline autoplay muted style="display:none;"></video>
+            <canvas id="canvas" style="display:none;"></canvas>
+            <img id="photoPreview" alt="Preview foto" style="display:none; max-width:100%; border:1px solid #ddd;"/>
+          </div>
+          <small>Foto wajib diambil sebelum submit. Kamera belakang akan diminta jika tersedia.</small>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" id="submitBtn" class="btn primary" disabled>Kirim Absensi</button>
+          <span id="submitMsg" class="msg"></span>
+        </div>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Riwayat Hari Ini</h2>
+      <div id="riwayatBox">
+        <div><strong>Tanggal:</strong> <span id="tanggalHariIni">-</span></div>
+        <div><strong>Masuk:</strong> <span id="riwayatMasuk">Belum ada</span></div>
+        <div><strong>Pulang:</strong> <span id="riwayatPulang">Belum ada</span></div>
+        <div><strong>Lokasi Terakhir:</strong> <span id="riwayatLokasi">-</span></div>
+        <div id="riwayatCatatanWrap" style="display:none;"><strong>Catatan Lokasi:</strong> <span id="riwayatCatatan">-</span></div>
+        <div id="warningPulangTertinggal" class="msg warn" style="display:none;"></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+  <script>
+    // Proteksi: wajib login di hari yang sama
+    const session = getLoginSession();
+    if (!session || !isSameDate(session.loginDate, new Date())) {
+      window.location.href = "login.html";
+    }
+
+    // Inisialisasi UI
+    const userNameEl = document.getElementById('userName');
+    const formNama = document.getElementById('formNama');
+    const netStatus = document.getElementById('netStatus');
+    const gpsStatus = document.getElementById('gpsStatus');
+    const gpsAccuracyTxt = document.getElementById('gpsAccuracyTxt');
+    const coordsEl = document.getElementById('coords');
+    const jenisAbsensi = document.getElementById('jenisAbsensi');
+    const lokasiKerja = document.getElementById('lokasiKerja');
+    const catatanGroup = document.getElementById('catatanGroup');
+    const catatanLokasi = document.getElementById('catatanLokasi');
+    const startCamBtn = document.getElementById('startCamBtn');
+    const captureBtn = document.getElementById('captureBtn');
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const photoPreview = document.getElementById('photoPreview');
+    const submitBtn = document.getElementById('submitBtn');
+    const submitMsg = document.getElementById('submitMsg');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    const tanggalHariIni = document.getElementById('tanggalHariIni');
+    const riwayatMasuk = document.getElementById('riwayatMasuk');
+    const riwayatPulang = document.getElementById('riwayatPulang');
+    const riwayatLokasi = document.getElementById('riwayatLokasi');
+    const riwayatCatatanWrap = document.getElementById('riwayatCatatanWrap');
+    const riwayatCatatan = document.getElementById('riwayatCatatan');
+    const warningPulangTertinggal = document.getElementById('warningPulangTertinggal');
+
+    userNameEl.textContent = session.nama;
+    formNama.value = session.nama;
+    tanggalHariIni.textContent = formatDateDDMMYYYY(new Date());
+
+    // Status internet
+    function updateNetStatus() {
+      netStatus.textContent = navigator.onLine ? "Online" : "Offline";
+      validateFormReady();
+    }
+    window.addEventListener('online', updateNetStatus);
+    window.addEventListener('offline', updateNetStatus);
+    updateNetStatus();
+
+    // GPS
+    let currentPosition = null;
+    let gpsAccuracyOk = false;
+    function requestGPS() {
+      if (!("geolocation" in navigator)) {
+        gpsStatus.textContent = "GPS tidak tersedia";
+        gpsAccuracyOk = false;
+        validateFormReady();
+        return;
+      }
+      gpsStatus.textContent = "Mengambil lokasi...";
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude, accuracy } = pos.coords;
+          currentPosition = { latitude, longitude, accuracy };
+          const accTxt = `GPS ditemukan. Accuracy: ${Math.round(accuracy)} meter`;
+          gpsStatus.textContent = accTxt;
+          gpsAccuracyTxt.textContent = accTxt;
+          coordsEl.value = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+          if (accuracy <= 50) {
+            gpsAccuracyOk = true;
+          } else {
+            gpsAccuracyOk = false;
+            submitMsg.textContent = "GPS kurang akurat, silakan tunggu beberapa saat";
+            submitMsg.className = "msg warn";
+          }
+          validateFormReady();
+        },
+        (err) => {
+          gpsStatus.textContent = "GPS tidak aktif/ditolak";
+          currentPosition = null;
+          gpsAccuracyOk = false;
+          validateFormReady();
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    }
+    // Minta GPS saat halaman dibuka dan setiap 30 detik untuk akurasi
+    requestGPS();
+    setInterval(requestGPS, 30000);
+
+    // Kamera
+    let stream = null;
+    let photoBlob = null; // JPEG hasil kompres
+    let photoMeta = null; // data untuk watermark
+
+    startCamBtn.addEventListener('click', async () => {
+      try {
+        if (stream) {
+          // sudah aktif
+          return;
+        }
+        const constraints = {
+          video: { facingMode: { ideal: "environment" } },
+          audio: false
+        };
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = stream;
+        video.style.display = "block";
+        captureBtn.disabled = false;
+      } catch (e) {
+        // fallback default
+        try {
+          const constraints = { video: true, audio: false };
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+          video.srcObject = stream;
+          video.style.display = "block";
+          captureBtn.disabled = false;
+        } catch (err) {
+          submitMsg.textContent = "Tidak dapat mengakses kamera.";
+          submitMsg.className = "msg error";
+        }
+      }
+      validateFormReady();
+    });
+
+    captureBtn.addEventListener('click', async () => {
+      if (!stream) return;
+      // Ambil frame video ke canvas
+      const track = stream.getVideoTracks()[0];
+      const settings = track.getSettings();
+      const vw = video.videoWidth || settings.width || 1280;
+      const vh = video.videoHeight || settings.height || 720;
+
+      // Set resolusi output yang wajar
+      const maxW = 1280;
+      const scale = Math.min(1, maxW / vw);
+      const w = Math.round(vw * scale);
+      const h = Math.round(vh * scale);
+
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, w, h);
+
+      // Siapkan watermark text
+      const now = new Date();
+      const nama = formNama.value;
+      const jenis = jenisAbsensi.value || "-";
+      const tgl = formatDateDDMMYYYY(now);
+      const jam = formatTimeHHMMSS(now);
+      const lat = currentPosition ? currentPosition.latitude.toFixed(6) : "-";
+      const lng = currentPosition ? currentPosition.longitude.toFixed(6) : "-";
+      const lokasi = lokasiKerja.value || "-";
+      const catatan = lokasi === "Other" ? (catatanLokasi.value || "-") : "-";
+
+      // Watermark panel semi transparan
+      const pad = 12;
+      ctx.font = "bold 18px Arial";
+      ctx.fillStyle = "rgba(0,0,0,0.55)";
+      const lines = [
+        `Nama: ${nama}`,
+        `Jenis: ${jenis}`,
+        `Tanggal: ${tgl}  Jam: ${jam}`,
+        `Lat: ${lat}  Lng: ${lng}`,
+        `Lokasi: ${lokasi}`,
+      ];
+      if (lokasi === "Other") lines.push(`Catatan: ${catatan}`);
+
+      // Hitung tinggi panel
+      const lineH = 22;
+      const panelH = pad*2 + lines.length * lineH;
+      const panelW = Math.min(w, 700);
+      const x = pad;
+      const y = h - panelH - pad;
+
+      // Panel background
+      ctx.fillRect(x, y, panelW, panelH);
+
+      // Tulisan watermark
+      ctx.fillStyle = "#fff";
+      ctx.textBaseline = "top";
+      let ty = y + pad;
+      for (const ln of lines) {
+        ctx.fillText(ln, x + pad, ty);
+        ty += lineH;
+      }
+
+      // Kompres ke JPEG target <= 500KB dengan penurunan kualitas otomatis
+      let quality = 0.9;
+      let blob = await canvasToBlob(canvas, "image/jpeg", quality);
+      while (blob.size > 500 * 1024 && quality > 0.4) {
+        quality -= 0.1;
+        blob = await canvasToBlob(canvas, "image/jpeg", quality);
+      }
+
+      photoBlob = blob;
+      photoMeta = { nama, jenis, tgl, jam, lat, lng, lokasi, catatan };
+      // Tampilkan preview
+      photoPreview.src = URL.createObjectURL(blob);
+      photoPreview.style.display = "block";
+      canvas.style.display = "none";
+
+      validateFormReady();
+    });
+
+    // Lokasi kerja: tampilkan catatan jika Other
+    lokasiKerja.addEventListener('change', () => {
+      if (lokasiKerja.value === "Other") {
+        catatanGroup.style.display = "block";
+      } else {
+        catatanGroup.style.display = "none";
+        catatanLokasi.value = "";
+      }
+      validateFormReady();
+    });
+
+    // Submit
+    const absenForm = document.getElementById('absenForm');
+    absenForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      submitMsg.textContent = "";
+      submitMsg.className = "msg";
+      // Validasi klien
+      const nama = formNama.value.trim();
+      const jenis = jenisAbsensi.value;
+      const lokasi = lokasiKerja.value;
+      const catatan = lokasi === "Other" ? (catatanLokasi.value.trim()) : "";
+
+      const errors = [];
+      if (!session || !isSameDate(session.loginDate, new Date())) errors.push("Sesi login tidak valid.");
+      if (!nama) errors.push("Nama tidak tersedia.");
+      if (!lokasi) errors.push("Lokasi tempat kerja wajib dipilih.");
+      if (lokasi === "Other" && !catatan) errors.push("Catatan lokasi wajib diisi untuk pilihan 'Other'.");
+      if (!jenis) errors.push("Jenis absensi wajib dipilih.");
+      if (!currentPosition) errors.push("GPS wajib aktif.");
+      if (currentPosition && currentPosition.accuracy > 50) errors.push("GPS kurang akurat, silakan tunggu beberapa saat.");
+      if (!stream) errors.push("Kamera belum diaktifkan.");
+      if (!photoBlob) errors.push("Foto belum diambil.");
+      if (!navigator.onLine) errors.push("Tidak ada koneksi internet.");
+
+      if (errors.length) {
+        submitMsg.textContent = errors[0];
+        submitMsg.className = "msg error";
+        return;
+      }
+
+      // Siapkan payload
+      const payload = {
+        action: "absen",
+        nama,
+        jenis,
+        lokasiKerja: lokasi,
+        catatanLokasi: catatan || "",
+        latitude: currentPosition.latitude,
+        longitude: currentPosition.longitude,
+        accuracy: currentPosition.accuracy
+      };
+
+      // Disable button + loading
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Mengirim data...";
+      try {
+        // Upload foto via fetch multipart
+        const formData = new FormData();
+        formData.append("meta", new Blob([JSON.stringify(payload)], { type: "application/json" }));
+        formData.append("foto", photoBlob, `absensi_${Date.now()}.jpg`);
+
+        const res = await fetch(WEB_APP_URL + "?action=absen", {
+          method: "POST",
+          body: formData
+        });
+        const data = await res.json();
+        if (data.success) {
+          submitMsg.textContent = "Absensi berhasil dikirim.";
+          submitMsg.className = "msg success";
+          // Refresh riwayat
+          await loadRiwayat();
+          // Reset hanya bagian foto (agar bisa pulang nanti tanpa foto lama)
+          photoBlob = null;
+          photoPreview.style.display = "none";
+          submitBtn.textContent = "Kirim Absensi";
+          // Tetap biarkan kamera aktif untuk efisiensi
+        } else {
+          submitMsg.textContent = data.message || "Gagal mengirim absensi.";
+          submitMsg.className = "msg error";
+          submitBtn.textContent = "Kirim Absensi";
+        }
+      } catch (err) {
+        submitMsg.textContent = "Kesalahan koneksi saat mengirim.";
+        submitMsg.className = "msg error";
+        submitBtn.textContent = "Kirim Absensi";
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+
+    // Logout
+    logoutBtn.addEventListener('click', () => {
+      clearLoginSession();
+      // Matikan kamera
+      if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+        stream = null;
+      }
+      window.location.href = "login.html";
+    });
+
+    // Muat riwayat
+    async function loadRiwayat() {
+      try {
+        const res = await fetch(WEB_APP_URL + "?action=riwayat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nama: session.nama })
+        });
+        const data = await res.json();
+        if (data.success) {
+          // Tampilkan
+          riwayatMasuk.textContent = data.today.masuk || "Belum ada";
+          riwayatPulang.textContent = data.today.pulang || "Belum ada";
+          riwayatLokasi.textContent = data.today.lokasiTerakhir || "-";
+          if (data.today.lokasiTerakhir === "Other" && data.today.catatanLokasi) {
+            riwayatCatatan.textContent = data.today.catatanLokasi;
+            riwayatCatatanWrap.style.display = "block";
+          } else {
+            riwayatCatatanWrap.style.display = "hidden";
+            riwayatCatatanWrap.style.display = "none";
+          }
+          if (data.warningPulangTertinggal) {
+            warningPulangTertinggal.textContent = data.warningPulangTertinggal;
+            warningPulangTertinggal.style.display = "block";
+          } else {
+            warningPulangTertinggal.style.display = "none";
+          }
+        }
+      } catch (e) {
+        // diamkan, agar halaman tetap jalan offline
+      }
+    }
+
+    // Jalankan saat load
+    loadRiwayat();
+
+    // Validasi aktifkan tombol submit
+    function validateFormReady() {
+      let ok = true;
+      if (!navigator.onLine) ok = false;
+      if (!currentPosition) ok = false;
+      if (currentPosition && currentPosition.accuracy > 50) ok = false;
+      if (!jenisAbsensi.value) ok = false;
+      if (!lokasiKerja.value) ok = false;
+      if (lokasiKerja.value === "Other" && !catatanLokasi.value.trim()) ok = false;
+      if (!stream) ok = false;
+      if (!photoBlob) ok = false;
+
+      submitBtn.disabled = !ok;
+    }
+
+    // Utilitas canvas to blob
+    async function canvasToBlob(cv, type, quality) {
+      return new Promise((resolve) => cv.toBlob(resolve, type, quality));
+    }
+  </script>
+</body>
+</html>
