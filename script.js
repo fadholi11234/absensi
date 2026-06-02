@@ -1,5 +1,5 @@
 // ====== KONFIGURASI FRONTEND ======
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxljBGIlanCaBShM4G7QKbHJGNPiG_gSRzXKPpJe9GtMZGm0D7kZOdPP8shDLEsqaFZ/exec"; // contoh: [script.google.com](https://script.google.com/macros/s/AKfycbx.../exec)
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycby23YWsY85BaAZxvhLhJ_PJK9yA0N42Xc0PUsOyGZ8lCBkCzTMSvlzsFYE_ie3LB3CM/exec"; // contoh: [script.google.com](https://script.google.com/macros/s/AKfycbx.../exec)
 
 // ====== UTILITAS SESI LOGIN (LocalStorage) ======
 const SESSION_KEY = "absensi_session_v1";
